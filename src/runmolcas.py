@@ -109,7 +109,7 @@ def parse_molcas_iteration_data(log_file, iteration_number):
                         import re
                         # Pattern to match iteration data line:
                         # "        1   0    5    1  -107.43700441    0.00E+00  -5.59E-03    7  10 1 -1.49E-02*  1.00   0.00    SX    NO    0:00:01"
-                        pattern = rf'^\s*{iteration_number}\s+(\d+)\s+(\d+)\s+(\d+)\s+([-\d\.E\+]+)\s+([-\d\.E\+\*]+)\s+([-\d\.E\+\*]+)\s+(\d+)\s+(\d+)\s+(\d+)\s+([-\d\.E\+\*]+)\s+([\d\.]+)\s+([-\d\.]+)\s+(\w+)\s+(\w+)\s+([\d:]+)'
+                        pattern = rf'^\s*{iteration_number}\s+(\d+)\s+(\d+)\s+(\d+)\s+([-\d\.E\+]+)\s+([-\d\.E\+\*]+)\s+([-\d\.E\+\*]+)\s+(\d+)(\s+(\d+))?\s+(\d+)\s+([-\d\.E\+\*]+)\s+([\d\.]+)\s+([-\d\.]+)\s+(\w+)\s+(\w+)\s+([\d:]+)'
                         
                         match = re.search(pattern, next_line)
                         if match:
@@ -119,15 +119,20 @@ def parse_molcas_iteration_data(log_file, iteration_number):
                             rasscf_energy = float(match.group(4))
                             energy_change = match.group(5).replace('*', '')  # Remove * marker
                             max_rot_param = match.group(6).replace('*', '')  # Remove * marker
-                            max_blb_elem = int(match.group(7))
-                            max_blb_val = int(match.group(8))
-                            max_blb_idx = int(match.group(9))
-                            max_blb_value = match.group(10).replace('*', '')  # Remove * marker
-                            level_shift = float(match.group(11))
-                            ln_srch_min = float(match.group(12))
-                            step_type = match.group(13)
-                            qn_update = match.group(14)
-                            walltime = match.group(15)
+                            # max BLB fields could be merged with > 999 orbitals
+                            if match.group(8) is None:
+                                max_blb_elem = int(match.group(7)[:-4])
+                                max_blb_val = int(match.group(7)[-4:])
+                            else:
+                                max_blb_elem = int(match.group(7))
+                                max_blb_val = int(match.group(9))
+                            max_blb_idx = int(match.group(10))
+                            max_blb_value = match.group(11).replace('*', '')  # Remove * marker
+                            level_shift = float(match.group(12))
+                            ln_srch_min = float(match.group(13))
+                            step_type = match.group(14)
+                            qn_update = match.group(15)
+                            walltime = match.group(16)
                             
                             return {
                                 'ci_iter': ci_iter,
@@ -728,7 +733,7 @@ def run_molcas_with_csf(filename, csf_stepvec, debug=False, sleep_interval=0.5, 
         print(f"  Iteration data:  {filename}.iterdata")
         print(f"  Debug mode:      {debug}")
         print(f"  Sleep interval:  {sleep_interval} seconds")
-        print(f"  Scratch dir:     ./scratch")
+        print(f"  Scratch dir:     {scratch_dir}")
         print(f"  User RDM mode:   {user_rdm}")
         print(f"  Manual mode:     {manual_mode}")
         if manual_mode:
