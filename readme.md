@@ -4,6 +4,7 @@ In `src/`, you can find the following files.
 - `gen_spinfree_rdm.py`: Generates one- and two-body RDMs of a CSF.
 - `IntegralClass.py`: Reads in an FCIDUMP file.
 - `runmolcas.py`: Interfaces to run CSF-ROHF using OpenMolcas RASSCF module.
+- 'settings.py`: To run `runmolcas.py`, you need to set your OpenMolcas build directory in this file.
 
 ### Tutorial: SSG-CSF-ROHF Optimized Orbitals
 
@@ -58,8 +59,10 @@ python ../../../src/runmolcas.py -u Fe2S2 1 1 1 1 1 2 2 2 2 2
 
 The `-u` flag instructs the script to use RDM files from the working directory.
 This produces SSG-CSF-ROHF orbitals and energy: `RASSCF energy for state  1 -5092.73230830`.
+The energy is found in Table 3 of Reference [1].
 
 > **Note:** The Python script supplies a fake energy to OpenMolcas to allow the iteration to proceed when the `-u` flag is used. This value appears in the output but should not be used for analysis.
+
 
 ### Other Example
 After you set `molcas_path` in `src/runmolcas.py` line 72 to your Molcas installation directory,
