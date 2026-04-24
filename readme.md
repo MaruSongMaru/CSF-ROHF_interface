@@ -4,7 +4,7 @@ In `src/`, you can find the following files.
 - `gen_spinfree_rdm.py`: Generates one- and two-body RDMs of a CSF.
 - `IntegralClass.py`: Reads in an FCIDUMP file.
 - `runmolcas.py`: Interfaces to run CSF-ROHF using OpenMolcas RASSCF module.
-- 'settings.py: To run `runmolcas.py`, you need to set your OpenMolcas build directory in this file.
+- **'settings.py: To run `runmolcas.py`, you need to set your OpenMolcas build directory in this file.**
 
 ### Tutorial: SSG-CSF-ROHF Optimized Orbitals
 
