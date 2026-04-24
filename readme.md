@@ -13,3 +13,5 @@ Go to `example/` and `$ python ../src/runmolcas.py N2 1 1 1 2 2 2`.
 you use for the ROHF optimization in the step-vector format.
 This executes Molcas with `N2.inp` and feed RDMs and the RDM energy to Molcas
 for every RASSCF iteration.
+
+### SSG-CSF-ROHF protocol
