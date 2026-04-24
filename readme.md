@@ -5,7 +5,63 @@ In `src/`, you can find the following files.
 - `IntegralClass.py`: Reads in an FCIDUMP file.
 - `runmolcas.py`: Interfaces to run CSF-ROHF using OpenMolcas RASSCF module.
 
-### Example
+### Tutorial: SSG-CSF-ROHF Optimized Orbitals
+
+This tutorial provides a step-by-step guide to obtaining SSG-CSF-ROHF optimized orbitals using the Fe dimer example from Reference [1].
+
+Using the Python interface in this repository requires:
+- [OpenMolcas](https://gitlab.com/Molcas/OpenMolcas) for orbital optimization  
+- [NECI](https://github.com/fkfest/NECI_STABLE) for PT2-RDM generation  
+
+> **Note:** The stochastic SplitGAS (SSG) method is currently only available in an internal development version of NECI. Please contact us to request access.
+
+All files used in this tutorial are located in `example/SSG-CSF-ROHF_tutorial`.
+
+---
+We begin with a set of localized and sorted high-spin ROHF orbitals `Fe2S2.SortOrb`.
+The Fe 3d orbitals are site-separated: the first five orbitals belong to Fe 1 and
+the last five orbitals belong to Fe 2.
+
+#### Step 1: CSF-ROHF Orbital Optimization  
+Directory: `1_CSF-ROHF/`
+
+Run:
+```bash
+python ../../../src/runmolcas.py Fe2S2 1 1 1 1 1 2 2 2 2 2
+```
+`Fe2S2` is the input file name without extension.
+The integers define the step-vector elements of the target CSF (|uuuuu ddddd>).
+This command executes an OpenMolcas calculation via the Python interface.
+For subsequent steps (2 and 4), use the optimized orbitals from the final iteration before
+canonicalization (`Fe2S2.IterOrb.25`).
+
+#### Step 2: FCIDUMP Generation
+Directory: `2_dumpgen/`
+
+Run an OpenMolcas calculation using `Fe2S2.inp`.
+
+#### Step 3: PT2-RDM Generation
+Directory: `3_RDMgen/`
+
+Run NECI with the replica trick (`dneci`) using `input`.
+`p1.list` defines the P space of the SSG calculation.
+
+> **Note:** This step requires the internal development version of NECI with SSG support.
+
+#### Step 4: SSG-CSF-ROHF Orbital Optimization
+Directory: `4_SSG-CSF-ROHF/`
+
+Run:
+```bash
+python ../../../src/runmolcas.py -u Fe2S2 1 1 1 1 1 2 2 2 2 2
+```
+
+The `-u` flag instructs the script to use RDM files from the working directory.
+This produces SSG-CSF-ROHF orbitals and energy: `RASSCF energy for state  1 -5092.73230830`.
+
+> **Note:** The Python script supplies a fake energy to OpenMolcas to allow the iteration to proceed when the `-u` flag is used. This value appears in the output but should not be used for analysis.
+
+### Other Example
 After you set `molcas_path` in `src/runmolcas.py` line 72 to your Molcas installation directory,
 you can run the example input in `example/`.
 Go to `example/` and `$ python ../src/runmolcas.py N2 1 1 1 2 2 2`.
@@ -14,4 +70,8 @@ you use for the ROHF optimization in the step-vector format.
 This executes Molcas with `N2.inp` and feed RDMs and the RDM energy to Molcas
 for every RASSCF iteration.
 
-### SSG-CSF-ROHF protocol
+### References
+[1] Maru Song, Luca Bonfirraro, Ignacio Fdez. Galván, Roland Lindh, and Giovanni Li Manni,
+"Spin-Adapted Restricted Open-Shell Hartree-Fock and Its Dynamic Correlation Extension",
+Accepted for publication in Journal of Chemical Theory and Computation,
+https://doi.org/10.26434/chemrxiv.15000528/v2 (2026)

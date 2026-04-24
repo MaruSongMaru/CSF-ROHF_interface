@@ -13,12 +13,29 @@ import sys
 import subprocess
 import shutil
 import argparse
+import importlib.util
 import time
 import re
 import threading
 import numpy as np
 from pathlib import Path
 from datetime import datetime
+from typing import Any
+
+
+def _load_settings_value(name: str) -> Any:
+    settings_path = Path(__file__).with_name("settings.py")
+    spec = importlib.util.spec_from_file_location("settings", settings_path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"Could not load settings from {settings_path}")
+
+    settings_module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(settings_module)
+
+    return getattr(settings_module, name)
+
+
+MOLCAS_PATH = _load_settings_value("MOLCAS_PATH")
 
 
 class TeeOutput:
@@ -69,7 +86,12 @@ def setup_environment(scratch_dir=None):
     # In Python, we assume the modules are already loaded or handle via environment
 
     # Set MOLCAS environment variables
-    molcas_path = "/home/song/BUILD/OpenMolcas/2026-11-12_AMD/"
+    if not MOLCAS_PATH:
+        print("Error: MOLCAS_PATH is not set in src/settings.py.", flush=True)
+        print("Please edit src/settings.py and set MOLCAS_PATH to your OpenMolcas installation directory.", flush=True)
+        raise SystemExit(1)
+
+    molcas_path = MOLCAS_PATH
     os.environ["MOLCAS"] = molcas_path
     os.environ["MOLCASEXE"] = os.path.join(molcas_path, "pymolcas")
 
