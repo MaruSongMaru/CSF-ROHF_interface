@@ -15,3 +15,4 @@ This executes Molcas with `N2.inp` and feed RDMs and the RDM energy to Molcas
 for every RASSCF iteration.
 
 ### SSG-CSF-ROHF protocol
+test branch protection
