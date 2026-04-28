@@ -76,5 +76,5 @@ for every RASSCF iteration.
 ### References
 [1] Maru Song, Luca Bonfirraro, Ignacio Fdez. Galván, Roland Lindh, and Giovanni Li Manni,
 "Spin-Adapted Restricted Open-Shell Hartree-Fock and Its Dynamic Correlation Extension",
-Accepted for publication in Journal of Chemical Theory and Computation,
-https://doi.org/10.26434/chemrxiv.15000528/v2 (2026)
+Accepted for publication in Journal of Chemical Theory and Computation (2026),
+https://doi.org/10.1021/acs.jctc.6c00379
