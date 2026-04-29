@@ -870,7 +870,7 @@ def run_molcas_with_csf(filename, csf_stepvec, debug=False, sleep_interval=0.5, 
         print(f"  CSF step vector: {CSF_stepvec}")
         print(f"  CSF orbital count:      {csf_orbital_count}")
         print(f"  CSF electron count:     {csf_active_electrons}")
-        print(f"  CSF spin (2S/2):        {csf_spin:g}")
+        print(f"  CSF spin:        {csf_spin:g}")
         print("="*80)
         print()
 
