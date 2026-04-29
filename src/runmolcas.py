@@ -874,8 +874,6 @@ def run_molcas_with_csf(filename, csf_stepvec, debug=False, sleep_interval=0.5, 
         print("="*80)
         print()
 
-        print(f"CSF step vector: {CSF_stepvec}")
-        
         # Check if input file exists
         input_file = f"{filename}.inp"
         if not os.path.exists(input_file):
