@@ -89,29 +89,30 @@ def extract_state_symmetry(log_content: str) -> int:
     return int(matches[-1])
 
 
-def validate_csf_against_molcas(log_content: str, csf_stepvec: Iterable[int]) -> None:
-    """Validate the CSF against the first-RASSCF MOLCAS log information."""
-    csf_stepvec_list = list(csf_stepvec)
+def validate_csf_against_molcas(
+    log_content: str,
+    csf_orbital_count: int,
+    csf_active_electrons: int,
+    csf_spin_twice: int,
+) -> None:
+    """Validate precomputed CSF properties against the first-RASSCF MOLCAS log information."""
 
     active_orbitals = extract_active_orbitals(log_content)
-    if len(csf_stepvec_list) != active_orbitals:
+    if csf_orbital_count != active_orbitals:
         raise ValueError(
-            f"CSF step vector length ({len(csf_stepvec_list)}) does not match the number of active orbitals "
-            f"({active_orbitals}) at first RASSCF iteration"
+            f"CSF orbital count ({csf_orbital_count}) does not match the number of active orbitals ({active_orbitals})"
         )
 
     active_shell_electrons = extract_active_shell_electrons(log_content)
-    csf_active_electrons = calculate_csf_active_electrons(csf_stepvec_list)
     if csf_active_electrons != active_shell_electrons:
         raise ValueError(
-            f"CSF active-electron count ({csf_active_electrons}) does not match the number of electrons in active shells "
-            f"({active_shell_electrons}) at first RASSCF iteration"
+            f"CSF electron count ({csf_active_electrons}) does not match the number of electrons in active shells "
+            f"({active_shell_electrons})"
         )
 
     state_symmetry = extract_state_symmetry(log_content)
-    csf_spin_twice = calculate_csf_spin_twice(csf_stepvec_list)
     csf_multiplicity = csf_spin_twice + 1
     if csf_multiplicity != state_symmetry:
         raise ValueError(
-            f"CSF multiplicity ({csf_multiplicity}) does not match MOLCAS state symmetry ({state_symmetry}) at first RASSCF iteration"
+            f"CSF multiplicity ({csf_multiplicity}) does not match MOLCAS spin symmetry ({state_symmetry})"
         )

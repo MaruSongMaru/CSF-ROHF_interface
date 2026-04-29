@@ -23,7 +23,11 @@ from pathlib import Path
 from datetime import datetime
 from typing import Any
 
-from csf_props import validate_csf_against_molcas
+from csf_props import (
+    calculate_csf_active_electrons,
+    calculate_csf_spin_twice,
+    validate_csf_against_molcas,
+)
 
 
 def _load_settings_value(name: str) -> Any:
@@ -253,7 +257,16 @@ def kill_molcas_and_exit(process, reason, exit_code=1):
     os._exit(exit_code)
 
 
-def validate_stepvec(process, current_iteration, status_file, workdir, filename, csf_stepvec):
+def validate_stepvec(
+    process,
+    current_iteration,
+    status_file,
+    workdir,
+    filename,
+    csf_orbital_count,
+    csf_active_electrons,
+    csf_spin_twice,
+):
     """Hook for user-defined checks that must pass before the first RASSCF iteration proceeds.
 
     Add the concrete validation logic for your CSF here. If any check fails, call
@@ -274,7 +287,12 @@ def validate_stepvec(process, current_iteration, status_file, workdir, filename,
         )
 
     try:
-        validate_csf_against_molcas(log_content, csf_stepvec)
+        validate_csf_against_molcas(
+            log_content,
+            csf_orbital_count,
+            csf_active_electrons,
+            csf_spin_twice,
+        )
     except ValueError as e:
         kill_molcas_and_exit(process, str(e))
 
@@ -490,7 +508,9 @@ def monitor_status_file(filename, workdir, CSF_stepvec, stop_event=None, debug=F
                                 status_file,
                                 workdir,
                                 filename,
-                                CSF_stepvec,
+                                csf_orbital_count,
+                                csf_active_electrons,
+                                csf_spin_twice,
                             )
                         
                         # Move RDM files to scratch directory on first iteration only
@@ -819,6 +839,13 @@ def run_molcas_with_csf(filename, csf_stepvec, debug=False, sleep_interval=0.5, 
     # Redirect output
     sys.stdout = tee_stdout
     sys.stderr = tee_stderr
+
+    # Normalize the CSF step vector once and measure its properties up front
+    CSF_stepvec = np.array(csf_stepvec)
+    csf_orbital_count = len(CSF_stepvec)
+    csf_active_electrons = calculate_csf_active_electrons(CSF_stepvec)
+    csf_spin_twice = calculate_csf_spin_twice(CSF_stepvec)
+    csf_spin = csf_spin_twice / 2
     
     try:
         # Print header with calculation variables
@@ -840,13 +867,13 @@ def run_molcas_with_csf(filename, csf_stepvec, debug=False, sleep_interval=0.5, 
         if manual_mode:
             print(f"  FCIQMC dir:      {fciqmc_dir}")
             print(f"  NECI command:    {neci_command}")
-        print(f"  CSF step vector: {csf_stepvec}")
-        print(f"  CSF length:      {len(csf_stepvec)}")
+        print(f"  CSF step vector: {CSF_stepvec}")
+        print(f"  CSF orbital count:      {csf_orbital_count}")
+        print(f"  CSF electron count:     {csf_active_electrons}")
+        print(f"  CSF spin (2S/2):        {csf_spin:g}")
         print("="*80)
         print()
-        
-        # Convert to numpy array if needed
-        CSF_stepvec = np.array(csf_stepvec)
+
         print(f"CSF step vector: {CSF_stepvec}")
         
         # Check if input file exists
