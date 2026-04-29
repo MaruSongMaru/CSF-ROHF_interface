@@ -23,6 +23,8 @@ from pathlib import Path
 from datetime import datetime
 from typing import Any
 
+from csf_props import validate_csf_against_molcas
+
 
 def _load_settings_value(name: str) -> Any:
     settings_path = Path(__file__).with_name("settings.py")
@@ -261,36 +263,20 @@ def validate_stepvec(process, current_iteration, status_file, workdir, filename,
         return
 
     molcas_log_file = f"{filename}.log"
-    active_orbitals = None
 
     try:
         with open(molcas_log_file, 'r') as log_file:
             log_content = log_file.read()
-
-        matches = re.findall(r'Number of active orbitals\s+(\d+)', log_content)
-        if matches:
-            active_orbitals = int(matches[-1])
     except Exception as e:
         kill_molcas_and_exit(
             process,
-            f"Failed to read active orbital count from {molcas_log_file}: {e}",
+            f"Failed to read MOLCAS log file {molcas_log_file}: {e}",
         )
 
-    if active_orbitals is None:
-        kill_molcas_and_exit(
-            process,
-            f"Could not find 'Number of active orbitals' in {molcas_log_file} at first RASSCF iteration",
-        )
-
-    step_vector_length = len(csf_stepvec)
-    if step_vector_length != active_orbitals:
-        kill_molcas_and_exit(
-            process,
-            (
-                f"CSF step vector length ({step_vector_length}) does not match the number of active orbitals "
-                f"({active_orbitals}) at first RASSCF iteration"
-            ),
-        )
+    try:
+        validate_csf_against_molcas(log_content, csf_stepvec)
+    except ValueError as e:
+        kill_molcas_and_exit(process, str(e))
 
 
 def extract_rdm_energy_from_fciqmc_output(output_file):
