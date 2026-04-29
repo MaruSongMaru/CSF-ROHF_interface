@@ -430,6 +430,7 @@ def run_external_fciqmc(fciqmc_dir, fcidump_path, neci_command, workdir):
 def monitor_status_file(
     filename,
     workdir,
+    CSF_stepvec,
     csf_orbital_count,
     csf_active_electrons,
     csf_spin_twice,
@@ -735,13 +736,18 @@ def run_molcas(filename, CSF_stepvec, debug=False, sleep_interval=0.5, manual_mo
 
         # Create stop event for monitor thread
         stop_event = threading.Event()
+        # Precompute CSF properties so monitor thread gets them (avoid NameError)
+        csf_orbital_count = len(CSF_stepvec)
+        csf_active_electrons = calculate_csf_active_electrons(CSF_stepvec)
+        csf_spin_twice = calculate_csf_spin_twice(CSF_stepvec)
         
         # Start monitoring in a separate thread
         monitor_thread = threading.Thread(
-            target=monitor_status_file, 
+            target=monitor_status_file,
             args=(
                 filename,
                 tmpdir,
+                CSF_stepvec,
                 csf_orbital_count,
                 csf_active_electrons,
                 csf_spin_twice,
@@ -752,7 +758,7 @@ def run_molcas(filename, CSF_stepvec, debug=False, sleep_interval=0.5, manual_mo
                 fciqmc_dir,
                 neci_command,
                 process,
-            )
+            ),
         )
         monitor_thread.daemon = False  # Changed to non-daemon so it completes properly
         monitor_thread.start()
