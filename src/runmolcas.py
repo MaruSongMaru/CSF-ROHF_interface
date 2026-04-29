@@ -427,7 +427,20 @@ def run_external_fciqmc(fciqmc_dir, fcidump_path, neci_command, workdir):
     return rdm_energy
 
 
-def monitor_status_file(filename, workdir, CSF_stepvec, stop_event=None, debug=False, sleep_interval=0.5, manual_mode=False, fciqmc_dir=None, neci_command=None, molcas_process=None):
+def monitor_status_file(
+    filename,
+    workdir,
+    csf_orbital_count,
+    csf_active_electrons,
+    csf_spin_twice,
+    stop_event=None,
+    debug=False,
+    sleep_interval=0.5,
+    manual_mode=False,
+    fciqmc_dir=None,
+    neci_command=None,
+    molcas_process=None,
+):
     """Monitor the status file for RASSCF iterations and write to NEWCYCLE when needed
     
     Creates a .iterdata file containing RASSCF iteration numbers, MOLCAS iteration data,
@@ -726,7 +739,20 @@ def run_molcas(filename, CSF_stepvec, debug=False, sleep_interval=0.5, manual_mo
         # Start monitoring in a separate thread
         monitor_thread = threading.Thread(
             target=monitor_status_file, 
-            args=(filename, tmpdir, CSF_stepvec, stop_event, debug, sleep_interval, manual_mode, fciqmc_dir, neci_command, process)
+            args=(
+                filename,
+                tmpdir,
+                csf_orbital_count,
+                csf_active_electrons,
+                csf_spin_twice,
+                stop_event,
+                debug,
+                sleep_interval,
+                manual_mode,
+                fciqmc_dir,
+                neci_command,
+                process,
+            )
         )
         monitor_thread.daemon = False  # Changed to non-daemon so it completes properly
         monitor_thread.start()
