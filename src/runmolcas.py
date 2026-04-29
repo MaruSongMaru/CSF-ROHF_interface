@@ -17,6 +17,7 @@ import importlib.util
 import time
 import re
 import threading
+import signal
 import numpy as np
 from pathlib import Path
 from datetime import datetime
@@ -211,6 +212,87 @@ def check_for_neci_message(log_file, last_position):
         return False, last_position
 
 
+def kill_molcas_and_exit(process, reason, exit_code=1):
+    """Terminate the MOLCAS process and exit this Python runner immediately."""
+    print(f"ERROR: {reason}", flush=True)
+
+    if process is not None:
+        try:
+            if process.poll() is None:
+                try:
+                    os.killpg(process.pid, signal.SIGTERM)
+                except ProcessLookupError:
+                    pass
+                except Exception as e:
+                    print(f"Warning: Failed to send SIGTERM to MOLCAS process group: {e}", flush=True)
+
+                try:
+                    process.terminate()
+                except Exception:
+                    pass
+
+                try:
+                    process.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    try:
+                        os.killpg(process.pid, signal.SIGKILL)
+                    except ProcessLookupError:
+                        pass
+                    except Exception as e:
+                        print(f"Warning: Failed to send SIGKILL to MOLCAS process group: {e}", flush=True)
+
+                    try:
+                        process.kill()
+                    except Exception:
+                        pass
+        except Exception as e:
+            print(f"Warning: Failed while terminating MOLCAS process: {e}", flush=True)
+
+    os._exit(exit_code)
+
+
+def validate_stepvec(process, current_iteration, status_file, workdir, filename, csf_stepvec):
+    """Hook for user-defined checks that must pass before the first RASSCF iteration proceeds.
+
+    Add the concrete validation logic for your CSF here. If any check fails, call
+    kill_molcas_and_exit(...) with a useful reason string.
+    """
+    if current_iteration != 1:
+        return
+
+    molcas_log_file = f"{filename}.log"
+    active_orbitals = None
+
+    try:
+        with open(molcas_log_file, 'r') as log_file:
+            log_content = log_file.read()
+
+        matches = re.findall(r'Number of active orbitals\s+(\d+)', log_content)
+        if matches:
+            active_orbitals = int(matches[-1])
+    except Exception as e:
+        kill_molcas_and_exit(
+            process,
+            f"Failed to read active orbital count from {molcas_log_file}: {e}",
+        )
+
+    if active_orbitals is None:
+        kill_molcas_and_exit(
+            process,
+            f"Could not find 'Number of active orbitals' in {molcas_log_file} at first RASSCF iteration",
+        )
+
+    step_vector_length = len(csf_stepvec)
+    if step_vector_length != active_orbitals:
+        kill_molcas_and_exit(
+            process,
+            (
+                f"CSF step vector length ({step_vector_length}) does not match the number of active orbitals "
+                f"({active_orbitals}) at first RASSCF iteration"
+            ),
+        )
+
+
 def extract_rdm_energy_from_fciqmc_output(output_file):
     """Extract RDM energy from FCIQMC output file
     
@@ -341,7 +423,7 @@ def run_external_fciqmc(fciqmc_dir, fcidump_path, neci_command, workdir):
     return rdm_energy
 
 
-def monitor_status_file(filename, workdir, CSF_stepvec, stop_event=None, debug=False, sleep_interval=0.5, manual_mode=False, fciqmc_dir=None, neci_command=None):
+def monitor_status_file(filename, workdir, CSF_stepvec, stop_event=None, debug=False, sleep_interval=0.5, manual_mode=False, fciqmc_dir=None, neci_command=None, molcas_process=None):
     """Monitor the status file for RASSCF iterations and write to NEWCYCLE when needed
     
     Creates a .iterdata file containing RASSCF iteration numbers, MOLCAS iteration data,
@@ -367,6 +449,8 @@ def monitor_status_file(filename, workdir, CSF_stepvec, stop_event=None, debug=F
         Path to FCIQMC directory (required if manual_mode=True)
     neci_command : str, optional
         NECI execution command (required if manual_mode=True)
+    molcas_process : subprocess.Popen, optional
+        Running MOLCAS process handle, used for forced termination on validation failure
     """
     import IntegralClass
     import GUGA_diag
@@ -409,10 +493,19 @@ def monitor_status_file(filename, workdir, CSF_stepvec, stop_event=None, debug=F
 
                 if match:
                     current_iteration = int(match.group(1))
-                    current_iteration = int(match.group(1))
                     
                     if current_iteration > last_iteration:
                         print(f"Detected NEW RASSCF iteration {current_iteration}", flush=True)
+
+                        if current_iteration == 1:
+                            validate_stepvec(
+                                molcas_process,
+                                current_iteration,
+                                status_file,
+                                workdir,
+                                filename,
+                                CSF_stepvec,
+                            )
                         
                         # Move RDM files to scratch directory on first iteration only
                         if IntegralClass_instance is None:
@@ -619,7 +712,7 @@ def run_molcas(filename, CSF_stepvec, debug=False, sleep_interval=0.5, manual_mo
         print(f"Command: {' '.join(cmd)}", flush=True)
 
         # Start MOLCAS process
-        process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, start_new_session=True)
 
         # Create stop event for monitor thread
         stop_event = threading.Event()
@@ -627,7 +720,7 @@ def run_molcas(filename, CSF_stepvec, debug=False, sleep_interval=0.5, manual_mo
         # Start monitoring in a separate thread
         monitor_thread = threading.Thread(
             target=monitor_status_file, 
-            args=(filename, tmpdir, CSF_stepvec, stop_event, debug, sleep_interval, manual_mode, fciqmc_dir, neci_command)
+            args=(filename, tmpdir, CSF_stepvec, stop_event, debug, sleep_interval, manual_mode, fciqmc_dir, neci_command, process)
         )
         monitor_thread.daemon = False  # Changed to non-daemon so it completes properly
         monitor_thread.start()
